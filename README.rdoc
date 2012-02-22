@@ -3,12 +3,11 @@
 This is an modernized version of mongo_mapper_acts_as_tree (https://github.com/ramdiv/mongo_mapper_acts_as_tree)
 In it's essence it's an implementation of a tree structure for MongoMapper, think acts as tree but for mongodb.
 
-
 == Installation
 
-Install as gem
-
-  gem install mongo_mapper_tree
+Not supplying this as a gem for now... Use github
+I assume you are using bundler, so add this to your Gemfile
+  gem 'mm-tree', :git => 'http://github.com/leifcr/mm-tree.git'
 
 == Usage
 
@@ -23,11 +22,29 @@ Enable the tree functionality by declaring acts_as_tree on your model
 
 This adds class_attributes called parent_id_field, path_field, depth_field, tree_order and tree_search_class.
 
-  parent_id_field, path_field and depth_field overrides the default field names
-  tree_order controls the order (format :field_name.[asc|desc])
-  tree_search_class expects a Class that is a MongoMapper::Document to be used for search
+  * parent_id_field overrides the field used for paths (default: path)
+  * depth_field overrides field used for depth (default: depth) 
+  * tree_order controls the order (format :field_name.[asc|desc])
+  * tree_search_class expects a Class that is a MongoMapper::Document to be used for search
 
-Check test_tree.rb and test_search_class.rb for examples.
+Tree hashes
+Minor warning: This can result in getting a lot of data, and cpu/memory usage depending on your tree size.
+
+on a Class: 
+  Category.tree_as_nested_hash([:name], :name.asc, 3)
+  Category.tree_as_nested_hash([:name], nil, 0)
+  Category.tree_as_nested_hash()
+
+on a object: 
+  c = Category.first
+  c.descendants_as_nested_hash([:name], :name.asc, 3)
+
+Options are:
+  * Array of fields to include for each element in the hash
+  * Field to sort the hash/query after (will always sort on depth/tree_order as well)
+  * Depth to go down from the give object or class.
+
+Check test.rb, test_tree.rb and test_search_class.rb for examples.
 
 == Note on Patches/Pull Requests
 
@@ -35,10 +52,15 @@ Check test_tree.rb and test_search_class.rb for examples.
 * Make your feature addition or bug fix.
 * Add tests for it. This is important so I don't break it in a
   future version unintentionally.
-* Commit, do not mess with rakefile, version, or history.
-  (if you want to have your own version, that is fine but bump version in a commit by itself I can ignore when I pull)
-* Send me a pull request. Bonus points for topic branches.
+* Send me a pull request, if you have features you like to see implemented.
+
+== Thanks
+ * Jakob Vidmar  (For the original MongoMapper Tree)
+ * Joel Junström (I based this tree on his refactoring of Jakobs MongoMapper Tree)
+ * MongoMapper devels (John Nunemaker, Brandon Keepers & others)
 
 == Copyright
 
-Copyright (c) 2011 Joel Junström. See LICENSE for details.
+Copyright (c) 2011 Joel Junström. 
+Copyright (c) 2012 Leif Ringstad. 
+See LICENSE for details.
