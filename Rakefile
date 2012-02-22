@@ -13,12 +13,12 @@ task :default => :test
 
 desc 'Builds the gem'
 task :build do
-  sh "gem build mongo_mapper_tree.gemspec"
+  sh "gem build mm-tree.gemspec"
 end
 
 desc 'Builds and installs the gem'
 task :install => :build do
-  sh "gem install mongo_mapper_tree-#{MongoMapperTree::Version}"
+  sh "gem install mm-tree-#{MongoMapperTree::Version}"
 end
 
 desc 'Tags version, pushes to remote, and pushes gem'
@@ -26,5 +26,5 @@ task :release => :build do
   sh "git tag v#{MongoMapperTree::Version}"
   sh "git push origin master"
   sh "git push origin v#{MongoMapperTree::Version}"
-  sh "gem push mongo_mapper_tree-#{MongoMapperTree::Version}.gem"
+  sh "gem push mm-tree-#{MongoMapperTree::Version}.gem"
 end

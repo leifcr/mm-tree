@@ -5,9 +5,9 @@ require 'database_cleaner'
 
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 $LOAD_PATH.unshift(File.dirname(__FILE__))
-require 'mongo_mapper_tree'
+require 'mm-tree'
 
-MongoMapper.database = "mongo_mapper_tree-test"
+MongoMapper.database = "mm-tree-test"
 
 Dir["#{File.dirname(__FILE__)}/models/*.rb"].each {|file| require file}
 
