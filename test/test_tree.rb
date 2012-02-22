@@ -18,6 +18,179 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
       assert eql_arrays?(Category.roots, [@root_1, @root_2])
     end
 
+    context "nested hash" do
+      should "return entire tree as a hash" do
+        h = {
+          @root_1._id => {
+            :depth => @root_1.depth,
+            :path => @root_1.path,
+            :name => @root_1.name,
+            :children => {
+              @child_1.id => {
+                :depth => @child_1.depth,
+                :path => @child_1.path,
+                :name => @child_1.name,
+                :children => {}
+              },
+              @child_2.id =>  {
+                :depth => @child_2.depth,
+                :path => @child_2.path,
+                :name => @child_2.name,
+                :children =>  {
+                  @child_2_1.id =>  {
+                    :depth => @child_2_1.depth,
+                    :path => @child_2_1.path,
+                    :name => @child_2_1.name,
+                    :children =>  {}
+                  }
+                }
+              },
+              @child_3.id => {
+                :depth => @child_3.depth,
+                :path => @child_3.path,
+                :name => @child_3.name,
+                :children => {}
+              }
+            }
+          },
+          @root_2._id => { 
+            :depth => @root_2.depth,
+            :path => @root_2.path,
+            :name => @root_2.name,
+            :children => {}
+          }
+        }
+        assert_equal(h, Category.tree_as_nested_hash([:name], :name.asc))
+      end
+
+      should "return tree hash with only 1st child level" do
+        h = {
+          @root_1._id => {
+            :depth => @root_1.depth,
+            :path => @root_1.path,
+            :name => @root_1.name,
+            :children => {
+              @child_1.id => {
+                :depth => @child_1.depth,
+                :path => @child_1.path,
+                :name => @child_1.name,
+                :children => {}
+              },
+              @child_2.id =>  {
+                :depth => @child_2.depth,
+                :path => @child_2.path,
+                :name => @child_2.name,
+                :children =>  {
+                }
+              },
+              @child_3.id => {
+                :depth => @child_3.depth,
+                :path => @child_3.path,
+                :name => @child_3.name,
+                :children => {}
+              }
+            }
+          },
+          @root_2._id => { 
+            :depth => @root_2.depth,
+            :path => @root_2.path,
+            :name => @root_2.name,
+            :children => {}
+          },
+        }
+        assert_equal(h, Category.tree_as_nested_hash([:name], :name.asc, 1))
+      end
+
+      should "return only roots in tree hash" do
+        h = {
+          @root_1._id => {
+            :depth => @root_1.depth,
+            :path => @root_1.path,
+            :name => @root_1.name,
+            :children => {}
+          },
+          @root_2._id => { 
+            :depth => @root_2.depth,
+            :path => @root_2.path,
+            :name => @root_2.name,
+            :children => {}
+          }
+        }
+        assert_equal(h, Category.tree_as_nested_hash([:name], :name.asc, 0))
+      end   
+      
+      should "return empty hash (root 2 doesn't have children)" do
+        assert_equal(@root_2.descendants_as_nested_hash(), {})
+      end
+
+      should "return only return childe 2.1 as hash" do
+        h = {
+          @child_2_1._id => {
+            :depth => @child_2_1.depth,
+            :path => @child_2_1.path,
+            :children => {}
+          }
+        }
+        assert_equal(h, @child_2.descendants_as_nested_hash())
+      end
+
+      should "only return children of root_1" do
+        h = {
+          @child_1.id => {
+            :depth => @child_1.depth,
+            :path => @child_1.path,
+            :name => @child_1.name,
+            :children => {}
+          },
+          @child_2.id =>  {
+            :depth => @child_2.depth,
+            :path => @child_2.path,
+            :name => @child_2.name,
+            :children =>  {
+              @child_2_1.id =>  {
+                :depth => @child_2_1.depth,
+                :path => @child_2_1.path,
+                :name => @child_2_1.name,
+                :children =>  {}
+              }
+            }
+          },
+          @child_3.id => {
+            :depth => @child_3.depth,
+            :path => @child_3.path,
+            :name => @child_3.name,
+            :children => {}
+          }
+        }
+        assert_equal(h, @root_1.descendants_as_nested_hash([:name], :name.asc))
+      end
+
+      should "only return 1st level children of root_1" do
+        h = {
+          @child_1.id => {
+            :depth => @child_1.depth,
+            :path => @child_1.path,
+            :name => @child_1.name,
+            :children => {}
+          },
+          @child_2.id =>  {
+            :depth => @child_2.depth,
+            :path => @child_2.path,
+            :name => @child_2.name,
+            :children =>  {
+            }
+          },
+          @child_3.id => {
+            :depth => @child_3.depth,
+            :path => @child_3.path,
+            :name => @child_3.name,
+            :children => {}
+          }
+        }
+        assert_equal(h, @root_1.descendants_as_nested_hash([:name], :name.asc, 1))
+      end
+    end
+
     context "node" do
       should "have a root" do
         assert_equal @root_1.root, @root_1

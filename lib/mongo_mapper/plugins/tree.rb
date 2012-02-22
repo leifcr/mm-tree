@@ -8,7 +8,85 @@ module MongoMapper
         def roots
           self.where(parent_id_field => nil).sort(tree_order).all
         end
-      end
+
+        # get entire tree structure as a hash
+        # starting with alll roots
+        def tree_as_nested_hash(additional_fields = [], secondary_sort = nil, depth = nil)
+          # only query additional fields if asked for, if not, only get parent/child structure.
+          # if additional_fields == [], assume all fields?
+          fields_arr = Array.new(additional_fields)
+          fields_arr << path_field.to_sym
+          fields_arr << depth_field.to_sym
+          fields_arr << parent_id_field.to_sym
+
+          nested_query = tree_search_class.where(parent_id_field => nil).fields(fields_arr)
+
+          if (secondary_sort != nil)
+            nested_query = nested_query.sort(self.depth_field.to_sym.asc, tree_order, secondary_sort)
+          else
+            nested_query = nested_query.sort(self.depth_field.to_sym.asc, tree_order)
+          end
+
+          ret = Hash.new
+          nodes = nested_query.all
+
+          #base_depth = nested_query.first.depth
+          for single_node in nodes
+            if (single_node.depth == 0) # process roots 
+              sub_depth = nil if depth.nil?
+              sub_depth = depth if !depth.nil?
+              ret[single_node._id] = {
+                :depth => single_node.depth,
+                :path  => single_node.path,
+              }
+              for add_field in additional_fields
+                ret[single_node._id] = ret[single_node._id].merge(Hash[add_field, single_node[add_field]])
+              end
+              ret[single_node._id] = ret[single_node._id].merge(Hash[:children, single_node.sub_nodes_as_nested_hash(single_node, single_node.descendants, additional_fields, sub_depth)])
+
+            end
+          end
+          ret
+        end # tree_as_nested_hash 
+
+      end # Module ClassMethods
+
+      # 
+      def descendants_as_nested_hash(additional_fields = [], secondary_sort = nil, depth = nil)
+        # only query additional fields if asked for, if not, only get parent/child structure.
+        fields_arr = Array.new(additional_fields) 
+        fields_arr << self.path_field.to_sym
+        fields_arr << self.depth_field.to_sym
+        fields_arr << self.parent_id_field.to_sym
+
+        nested_query = tree_search_class.where(path_field => self._id).fields(fields_arr)
+
+        if (secondary_sort != nil)
+          nested_query = nested_query.sort(self.depth_field.to_sym.asc, tree_order, secondary_sort)
+        else
+          nested_query = nested_query.sort(self.depth_field.to_sym.asc, tree_order)
+        end
+
+        ret = Hash.new
+        nodes = nested_query.all
+        #base_depth = nested_query.first.depth
+        for single_node in nodes
+          if (single_node.depth == self[depth_field] + 1) # only if we are 1 down from this 
+            sub_depth = nil if depth.nil?
+            sub_depth = depth-1 if !depth.nil?
+            ret[single_node._id] = {
+              :depth => single_node.depth,
+              :path  => single_node.path,
+              #:children => find_sub_nodes(single_node, get_child_nodes_only(single_node, nodes), additional_fields, sub_depth)
+            }
+            for add_field in additional_fields
+              ret[single_node._id] = ret[single_node._id].merge(Hash[add_field, single_node[add_field]])
+            end
+            ret[single_node._id] = ret[single_node._id].merge(Hash[:children, sub_nodes_as_nested_hash(single_node, nodes, additional_fields, sub_depth)])
+          end
+        end
+        ret
+      end # descendants_as_nested_hash
 
       def tree_search_class
         self.class.tree_search_class
@@ -68,12 +146,12 @@ module MongoMapper
       end
 
       def children
-        tree_search_class.where(parent_id_field => self._id).sort(tree_order).all
+        tree_search_class.where(parent_id_field => self._id).sort(depth_field.to_sym.asc, tree_order).all
       end
 
       def descendants
         return [] if new_record?
-        tree_search_class.where(path_field => self._id).sort(tree_order).all
+        tree_search_class.where(path_field => self._id).sort(depth_field.to_sym.asc, tree_order).all
       end
 
       def self_and_descendants
@@ -155,6 +233,50 @@ module MongoMapper
         after_save       :move_children
         before_destroy   :destroy_descendants
       end
-    end
-  end
-end
+
+      def sub_nodes_as_nested_hash(node, nodes, additional_fields = [], depth = nil)
+        
+        # only work through child nodes. Will speed up iteration...
+        nodes = get_child_nodes_only(node, nodes)
+
+        return {} if (nodes.nil? || node.nil?)
+        return {} if ((depth != nil) && (depth <= 0)) # shouldn't dig further down
+
+        ret = Hash.new
+
+        sub_depth = nil     if depth.nil?
+        sub_depth = depth-1 if !depth.nil?
+
+        for sub_node in nodes
+          if ((sub_node.depth == (node.depth + 1 )) && (sub_node.parent_id == node.id))
+            ret[sub_node._id] = {
+              :depth => sub_node.depth,
+              :path =>  sub_node.path,
+            }
+            for add_field in additional_fields
+              ret[sub_node._id] = ret[sub_node._id].merge(Hash[add_field, sub_node[add_field]])
+            end
+            ret[sub_node._id] = ret[sub_node._id].merge(Hash[:children, sub_nodes_as_nested_hash(sub_node, nodes, additional_fields, sub_depth)])
+          end
+        end
+        ret
+      end # sub_nodes_as_nested_hash  
+
+    private
+      def get_child_nodes_only(node, nodes)
+        return nil if (node.nil? || nodes.nil?)
+        return nil if (nodes.count <= 0)
+
+        ret_nodes = Array.new(nodes)
+        for single_node in nodes
+            ret_nodes.delete(single_node) if !(single_node.path.include?(node.id))
+        end
+
+        return nil if (ret_nodes.count <= 0 )
+
+        ret_nodes
+      end # get_child_nodes_only
+
+    end # Module Tree
+  end # Module Plugins
+end # Module MongoMapper
