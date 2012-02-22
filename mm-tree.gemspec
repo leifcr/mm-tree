@@ -5,7 +5,7 @@ Gem::Specification.new do |s|
   s.homepage       = 'http://github.com/leifcr/mm-tree'
   s.summary        = 'Tree structure for MongoMapper'
   s.description    = 'Tree structure for MongoMapper'
-  s.require_path   = 'lib'
+  s.require_paths   = ['lib']
   s.authors        = ['Joel Junström', 'Leif Ringstad']
   s.email          = ['joel.junstrom@oktavilla.se']
   s.version        = MongoMapperTree::Version
