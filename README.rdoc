@@ -22,10 +22,10 @@ Enable the tree functionality by declaring acts_as_tree on your model
 
 This adds class_attributes called parent_id_field, path_field, depth_field, tree_order and tree_search_class.
 
-  * parent_id_field overrides the field used for paths (default: path)
-  * depth_field overrides field used for depth (default: depth) 
-  * tree_order controls the order (format :field_name.[asc|desc])
-  * tree_search_class expects a Class that is a MongoMapper::Document to be used for search
+* parent_id_field overrides the field used for paths (default: path)
+* depth_field overrides field used for depth (default: depth) 
+* tree_order controls the order (format :field_name.[asc|desc])
+* tree_search_class expects a Class that is a MongoMapper::Document to be used for search
 
 Tree hashes
 Minor warning: This can result in getting a lot of data, and cpu/memory usage depending on your tree size.
@@ -40,9 +40,9 @@ on a object:
   c.descendants_as_nested_hash([:name], :name.asc, 3)
 
 Options are:
-  * Array of fields to include for each element in the hash
-  * Field to sort the hash/query after (will always sort on depth/tree_order as well)
-  * Depth to go down from the give object or class.
+* Array of fields to include for each element in the hash
+* Field to sort the hash/query after (will always sort on depth/tree_order as well)
+* Depth to go down from the give object or class.
 
 Check test.rb, test_tree.rb and test_search_class.rb for examples.
 
