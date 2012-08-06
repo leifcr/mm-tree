@@ -6,6 +6,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
       @child_1    = Category.create(:name => "Child 1", :parent => @root_1)
       @child_2    = Category.create(:name => "Child 2", :parent => @root_1)
       @child_2_1  = Category.create(:name => "Child 2.1", :parent => @child_2)
+      @child_2_2  = Category.create(:name => "Child 2.2", :parent => @child_2)
       @child_3    = Category.create(:name => "Child 3", :parent => @root_1)
       @root_2     = Category.create(:name => "Root 2")
     end
@@ -41,6 +42,12 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
                     :depth => @child_2_1.depth,
                     :path => @child_2_1.path,
                     :name => @child_2_1.name,
+                    :children =>  {}
+                  }
+                  @child_2_2.id =>  {
+                    :depth => @child_2_2.depth,
+                    :path => @child_2_2.path,
+                    :name => @child_2_2.name,
                     :children =>  {}
                   }
                 }
@@ -123,7 +130,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
         assert_equal(@root_2.descendants_as_nested_hash(), {})
       end
 
-      should "return only return childe 2.1 as hash" do
+      should "return only return child 2.1 as hash" do
         h = {
           @child_2_1._id => {
             :depth => @child_2_1.depth,
@@ -274,6 +281,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
           assert @child_2.children.include?(@child_3)
           assert @child_2.descendants.include?(@child_3)
           assert @child_2_1.is_or_is_sibling_of?(@child_3)
+          assert @child_2_2.is_or_is_sibling_of?(@child_3)
           assert_equal 2, @child_3.depth
         end
 
@@ -307,6 +315,58 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
           assert (@child_2_1.path == [@child_2.id])
         end
 
+        should "move parent and children and have valid nested hash" do
+          @child_2.parent = @child_3
+          @child_2.save
+        h = {
+          @root_1._id => {
+            :depth => @root_1.depth,
+            :path => @root_1.path,
+            :name => @root_1.name,
+            :children => {
+              @child_1.id => {
+                :depth => @child_1.depth,
+                :path => @child_1.path,
+                :name => @child_1.name,
+                :children => {}
+              },
+              @child_3.id => {
+                :depth => @child_3.depth,
+                :path => @child_3.path,
+                :name => @child_3.name,
+                :children => {
+                  @child_2.id =>  {
+                    :depth => @child_2.depth,
+                    :path => @child_2.path,
+                    :name => @child_2.name,
+                    :children =>  {
+                      @child_2_1.id =>  {
+                        :depth => @child_2_1.depth,
+                        :path => @child_2_1.path,
+                        :name => @child_2_1.name,
+                        :children =>  {}
+                      }
+                      @child_2_2.id =>  {
+                        :depth => @child_2_2.depth,
+                        :path => @child_2_2.path,
+                        :name => @child_2_2.name,
+                        :children =>  {}
+                      }
+                    }
+                  },                  
+                }
+              }
+            }
+          },
+          @root_2._id => { 
+            :depth => @root_2.depth,
+            :path => @root_2.path,
+            :name => @root_2.name,
+            :children => {}
+          }
+        }
+        assert_equal(h, Category.tree_as_nested_hash([:name], :name.asc))
+        end
       end
 
       should "destroy descendants when destroyed" do
