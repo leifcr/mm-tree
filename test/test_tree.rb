@@ -8,6 +8,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
       @child_2_1  = Category.create(:name => "Child 2.1", :parent => @child_2)
       @child_2_2  = Category.create(:name => "Child 2.2", :parent => @child_2)
       @child_3    = Category.create(:name => "Child 3", :parent => @root_1)
+      #@child_4    = Category.create(:name => "Child 3", :parent => @root_1)
       @root_2     = Category.create(:name => "Root 2")
     end
 
@@ -43,7 +44,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
                     :path => @child_2_1.path,
                     :name => @child_2_1.name,
                     :children =>  {}
-                  }
+                  },
                   @child_2_2.id =>  {
                     :depth => @child_2_2.depth,
                     :path => @child_2_2.path,
@@ -130,12 +131,17 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
         assert_equal(@root_2.descendants_as_nested_hash(), {})
       end
 
-      should "return only return child 2.1 as hash" do
+      should "return only return child 2.1 and 2.2 as hash" do
         h = {
           @child_2_1._id => {
             :depth => @child_2_1.depth,
             :path => @child_2_1.path,
             :children => {}
+          },
+          @child_2_2.id =>  {
+            :depth => @child_2_2.depth,
+            :path => @child_2_2.path,
+            :children =>  {}
           }
         }
         assert_equal(h, @child_2.descendants_as_nested_hash())
@@ -158,6 +164,12 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
                 :depth => @child_2_1.depth,
                 :path => @child_2_1.path,
                 :name => @child_2_1.name,
+                :children =>  {}
+              },
+              @child_2_2.id =>  {
+                :depth => @child_2_2.depth,
+                :path => @child_2_2.path,
+                :name => @child_2_2.name,
                 :children =>  {}
               }
             }
@@ -215,10 +227,11 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
       should "have siblings" do
         assert eql_arrays?(@root_1.siblings, [@root_2])
         assert eql_arrays?(@child_2.siblings, [@child_1, @child_3])
-        assert eql_arrays?(@child_2_1.siblings, [])
+        assert eql_arrays?(@child_2_1.siblings, [@child_2_2])
         assert eql_arrays?(@root_1.self_and_siblings, [@root_1, @root_2])
         assert eql_arrays?(@child_2.self_and_siblings, [@child_1, @child_2, @child_3])
-        assert eql_arrays?(@child_2_1.self_and_siblings, [@child_2_1])
+        assert eql_arrays?(@child_2_1.self_and_siblings, [@child_2_1, @child_2_2])
+        assert eql_arrays?(@child_2_2.self_and_siblings, [@child_2_1, @child_2_2])
       end
 
       should "set depth" do
@@ -233,11 +246,11 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
       end
 
       should "have descendants" do
-        assert eql_arrays?(@root_1.descendants, [@child_1, @child_2, @child_3, @child_2_1])
-        assert eql_arrays?(@child_2.descendants, [@child_2_1])
+        assert eql_arrays?(@root_1.descendants, [@child_1, @child_2, @child_3, @child_2_1, @child_2_2])
+        assert eql_arrays?(@child_2.descendants, [@child_2_1, @child_2_2])
         assert @child_2_1.descendants.empty?
-        assert eql_arrays?(@root_1.self_and_descendants, [@root_1, @child_1, @child_2, @child_3, @child_2_1])
-        assert eql_arrays?(@child_2.self_and_descendants, [@child_2, @child_2_1])
+        assert eql_arrays?(@root_1.self_and_descendants, [@root_1, @child_1, @child_2, @child_3, @child_2_1, @child_2_2])
+        assert eql_arrays?(@child_2.self_and_descendants, [@child_2, @child_2_1, @child_2_2])
         assert eql_arrays?(@child_2_1.self_and_descendants, [@child_2_1])
       end
 
@@ -318,6 +331,9 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
         should "move parent and children and have valid nested hash" do
           @child_2.parent = @child_3
           @child_2.save
+          @child_2.reload
+          @child_2_1.reload
+          @child_2_2.reload
         h = {
           @root_1._id => {
             :depth => @root_1.depth,
@@ -345,7 +361,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
                         :path => @child_2_1.path,
                         :name => @child_2_1.name,
                         :children =>  {}
-                      }
+                      },
                       @child_2_2.id =>  {
                         :depth => @child_2_2.depth,
                         :path => @child_2_2.path,
