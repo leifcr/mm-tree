@@ -49,6 +49,18 @@ module MongoMapper
           ret
         end # tree_as_nested_hash 
 
+        def tree_as_sorted_array
+          allroots = self.roots
+          allobjs = Array.new
+          allroots.each do |single_root|
+            allobjs << single_root
+            single_root.descendants.each do |single_descendant|
+              allobjs << single_descendant
+            end
+          end
+          allobjs
+        end
+
       end # Module ClassMethods
 
       # 
