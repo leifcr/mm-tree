@@ -1,25 +1,5 @@
-## MAC OS
-.DS_Store
-
-## TEXTMATE
-*.tmproj
-tmtags
-
-## Sublime Text
-*.sublime-project
-*.sublime-workspace
-
-## EMACS
-*~
-\#*
-.\#*
-
-## VIM
 *.swp
-
-coverage
-rdoc
-pkg
-*.gem
-.bundle
-Gemfile.lock
+*~
+pkg/
+.rvmrc
+*.sublime-*
