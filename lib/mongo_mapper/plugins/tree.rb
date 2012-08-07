@@ -63,7 +63,7 @@ module MongoMapper
       #     allobjs
       #   end
 
-      # end # Module ClassMethods
+      end # Module ClassMethods
 
       # # 
       # def descendants_as_nested_hash(additional_fields = [], secondary_sort = nil, depth = nil)
@@ -112,6 +112,12 @@ module MongoMapper
         end
       end
 
+      def init_tree_info
+        if (self.tree_info == nil)
+          self.tree_info = TreeInfo.new
+        end
+      end
+
       def fix_position(opts = {})
         if parent.nil?
           self[parent_id_field] = nil
@@ -119,8 +125,8 @@ module MongoMapper
           self.tree_info.depth = 0
         elsif !!opts[:force] || self.changes.include?(parent_id_field)
           @_will_move = true
-          self.tree_info.path  = parent.tree_info.path + parent._id # TODO - this should be inserted in correct order as array
-          self.tree_info.path = parent.tree_info.depth + 1
+          self.tree_info.path  = parent.tree_info.path << parent._id # TODO - FIX THIS this should be inserted in correct order as array
+          self.tree_info.depth = parent.tree_info.depth + 1
         end
       end
 
@@ -235,7 +241,7 @@ module MongoMapper
       end
 
       def is_ancestor_of?(other)
-        other[path_field].include?(self._id)
+        other.tree_info.path.include?(self._id)
       end
 
       def is_or_is_ancestor_of?(other)
@@ -291,17 +297,18 @@ module MongoMapper
         class_attribute :tree_order
 
         key parent_id_field, ObjectId
-        one :embedded_tree_info
+        one :tree_info
 # 
 #       An index for path field, left_field and right_field is recommended for faster queries.
 
         belongs_to :parent, :class => tree_search_class
 
-        validate         :will_save_tree
-        after_validation :fix_position
-        after_save       :move_children
-        before_destroy   :destroy_descendants
-        before_save      :set_base_positional_value
+        validate          :will_save_tree
+        before_validation :init_tree_info
+        after_validation  :fix_position
+        after_save        :move_children
+        before_destroy    :destroy_descendants
+        before_save       :set_base_positional_value
       end
 
       # def sub_nodes_as_nested_hash(node, nodes, additional_fields = [], depth = nil)
