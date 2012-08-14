@@ -3,3 +3,4 @@ en:
     errors:
       messages:
         cyclic: "Can't be children of a descendant"
+        incorrect_parent_nv_dv: "Positional values doesn't match parent (check nv/dv values)"
