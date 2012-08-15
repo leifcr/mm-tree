@@ -3,4 +3,5 @@ class Category
   plugin MongoMapper::Plugins::Tree
 
   key :name, String
+  timestamps!
 end
