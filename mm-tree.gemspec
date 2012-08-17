@@ -6,8 +6,8 @@ Gem::Specification.new do |s|
   s.summary        = 'Tree structure for MongoMapper'
   s.description    = 'Tree structure for MongoMapper'
   s.require_paths   = ['lib']
-  s.authors        = ['Joel Junström', 'Leif Ringstad']
-  s.email          = ['joel.junstrom@oktavilla.se']
+  s.authors        = ['Leif Ringstad']
+  s.email          = ['leifcr@gmail.com']
   s.version        = MongoMapperTree::Version
   s.platform       = Gem::Platform::RUBY
   s.files = Dir.glob("{lib,test}/**/*") + %w[LICENSE README.rdoc]
