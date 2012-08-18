@@ -112,5 +112,6 @@ Check test_order.rb, test_tree.rb and test_search_class.rb for more examples and
  * MongoMapper devels (John Nunemaker, Brandon Keepers & others)
 
 == Copyright
+Original ideas are Copyright Jakob Vidmar and Joel Junström. Please see their github repositories for details
 Copyright (c) 2012 Leif Ringstad. 
 See LICENSE for details.
