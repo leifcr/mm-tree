@@ -1,11 +1,14 @@
 require 'rubygems'
-require 'test/unit'
-require 'shoulda'
-require 'database_cleaner'
+require 'bundler/setup'
+# require 'test/unit'
+# require 'shoulda'
+# require 'database_cleaner'
 
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 $LOAD_PATH.unshift(File.dirname(__FILE__))
 require 'mm-tree'
+
+Bundler.require(:default, :test)
 
 MongoMapper.database = "mm-tree-test"
 

@@ -1,4 +1,6 @@
 # encoding: UTF-8
-module MongoMapperTree
-  Version = '0.0.5'
+module MongoMapper
+  module Tree
+    Version = '0.1.0'
+  end
 end

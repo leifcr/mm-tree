@@ -9,83 +9,23 @@ module MongoMapper
       module ClassMethods
 
         def roots
-          self.where(parent_id_field => nil).sort("tree_info.nv_div_dv").all
+          self.where(tree_parent_id_field => nil).sort(tree_sort_order()).all
         end
 
-        # get entire tree structure as a hash
-        # starting with alll roots
-      #   def tree_as_nested_hash(additional_fields = [], secondary_sort = nil, depth = nil)
-      #     # only query additional fields if asked for, if not, only get parent/child structure.
-      #     # if additional_fields == [], assume all fields?
-      #     fields_arr = Array.new(additional_fields)
-      #     fields_arr << path_field.to_sym
-      #     fields_arr << depth_field.to_sym
-      #     fields_arr << parent_id_field.to_sym
-      #     fields_arr << left_field.to_sym
-      #     fields_arr << right_field.to_sym
-
-      #     nested_query = tree_search_class.where(parent_id_field => nil).fields(fields_arr)
-
-      #     if (secondary_sort != nil)
-      #       nested_query = nested_query.sort("tree_info.nv_div_dv", secondary_sort)
-      #     else
-      #       nested_query = nested_query.sort("tree_info.nv_div_dv")
-      #     end
-
-      #     ret = Hash.new
-      #     nodes = nested_query.all
-
-      #     #base_depth = nested_query.first.depth
-      #     for single_node in nodes
-      #       if (single_node.depth == 0) # process roots 
-      #         sub_depth = nil if depth.nil?
-      #         sub_depth = depth if !depth.nil?
-      #         ret[single_node._id] = {
-      #           :depth => single_node.depth,
-      #           :path  => single_node.path,
-      #         }
-      #         for add_field in additional_fields
-      #           ret[single_node._id] = ret[single_node._id].merge(Hash[add_field, single_node[add_field]])
-      #         end
-      #         ret[single_node._id] = ret[single_node._id].merge(Hash[:children, single_node.sub_nodes_as_nested_hash(single_node, single_node.descendants, additional_fields, sub_depth)])
-
-      #       end
-      #     end
-      #     ret
-      #   end # tree_as_nested_hash 
-
-      #   def tree_as_sorted_array
-      #     allroots = self.roots
-      #     allobjs = Array.new
-      #     allroots.each do |single_root|
-      #       allobjs << single_root
-      #       single_root.descendants.each do |single_descendant|
-      #         allobjs << single_descendant
-      #       end
-      #     end
-      #     allobjs
-      #   end
-
         def position_from_nv_dv(nv, dv)
-          # puts "position_from_nv_dv #{nv}, #{dv}"
           anc_tree_keys = ancestor_tree_keys(nv, dv)
           (nv - anc_tree_keys[:nv]) / anc_tree_keys[:snv]
         end
 
-        # def id_from_nv_dv(nv, dv)
-        #   self.where("tree_info.nv" => nv).where("tree_info.dv" => dv).first._id
-        # end
-
         # returns ancestor nv, dv, snv, sdv values as hash
         def ancestor_tree_keys(nv,dv)
-          # puts "#ancestor_tree_keys #{nv}, #{dv}"
           numerator = nv
           denominator = dv
           ancnv = 0
           ancdv = 1
           ancsnv = 1
           ancsdv = 0
-          rethash = {:nv => ancnv, :dv => ancdv, :snv => ancsnv, :sdv => ancsdv, :nv_div_dv => Float(ancnv)/Float(ancdv)}
+          rethash = {:nv => ancnv, :dv => ancdv, :snv => ancsnv, :sdv => ancsdv}
           # make sure we break if we get root values! (numerator == 0 + denominator == 0)
           #max_levels = 10
           while ((ancnv < nv) && (ancdv < dv)) && ((numerator > 0) && (denominator > 0))# && (max_levels > 0)
@@ -93,7 +33,7 @@ module MongoMapper
             div = numerator / denominator
             mod = numerator % denominator
             # set return values to previous values, as they are the parent values
-            rethash = {:nv => ancnv, :dv => ancdv, :snv => ancsnv, :sdv => ancsdv, :nv_div_dv => Float(ancnv)/Float(ancdv)}
+            rethash = {:nv => ancnv, :dv => ancdv, :snv => ancsnv, :sdv => ancsdv}
 
             ancnv = ancnv + (div * ancsnv)
             ancdv = ancdv + (div * ancsdv)
@@ -110,12 +50,23 @@ module MongoMapper
           end
           return rethash
         end #get_ancestor_keys(nv,dv)
+
+        def tree_sort_order
+          if !tree_use_rational_numbers
+            "#{tree_order} #{tree_info.depth.asc}" 
+          else
+            "tree_info.nv_div_dv.asc"
+          end
+        end
+
       end # Module ClassMethods
 
       def initialize(*args)
         @_will_move = false
         @_set_nv_dv = false
-        self.init_tree_info()
+        if (self.tree_info == nil)
+          self.tree_info = TreeInfo.new
+        end
         super
       end
 
@@ -133,10 +84,15 @@ module MongoMapper
         class_attribute :tree_search_class
         self.tree_search_class ||= self
 
-        class_attribute :parent_id_field
-        self.parent_id_field ||= "parent_id"
+        class_attribute :tree_parent_id_field
+        self.tree_parent_id_field ||= "parent_id"
 
-        key parent_id_field, ObjectId
+        class_attribute :tree_use_rational_numbers
+        self.tree_use_rational_numbers ||= true
+
+        class_attribute :tree_order
+
+        key tree_parent_id_field, ObjectId
         one :tree_info
 # 
 #       An index for path field, left_field and right_field is recommended for faster queries.
@@ -151,45 +107,7 @@ module MongoMapper
         after_validation  :update_tree_info
         after_save        :move_children
         before_destroy    :destroy_descendants
-        before_save       :set_base_positional_value
       end
-
-      # # 
-      # def descendants_as_nested_hash(additional_fields = [], secondary_sort = nil, depth = nil)
-      #   # only query additional fields if asked for, if not, only get parent/child structure.
-      #   fields_arr = Array.new(additional_fields) 
-      #   fields_arr << self.path_field.to_sym
-      #   fields_arr << self.depth_field.to_sym
-      #   fields_arr << self.parent_id_field.to_sym
-
-      #   nested_query = tree_search_class.where(path_field => self._id).fields(fields_arr)
-
-      #   if (secondary_sort != nil)
-      #     nested_query = nested_query.sort("tree_info.nv_div_dv", secondary_sort)
-      #   else
-      #     nested_query = nested_query.sort("tree_info.nv_div_dv")
-      #   end
-
-      #   ret = Hash.new
-      #   nodes = nested_query.all
-      #   #base_depth = nested_query.first.depth
-      #   for single_node in nodes
-      #     if (single_node.depth == self[depth_field] + 1) # only if we are 1 down from this 
-      #       sub_depth = nil if depth.nil?
-      #       sub_depth = depth-1 if !depth.nil?
-      #       ret[single_node._id] = {
-      #         :depth => single_node.depth,
-      #         :path  => single_node.path,
-      #         #:children => find_sub_nodes(single_node, get_child_nodes_only(single_node, nodes), additional_fields, sub_depth)
-      #       }
-      #       for add_field in additional_fields
-      #         ret[single_node._id] = ret[single_node._id].merge(Hash[add_field, single_node[add_field]])
-      #       end
-      #       ret[single_node._id] = ret[single_node._id].merge(Hash[:children, sub_nodes_as_nested_hash(single_node, nodes, additional_fields, sub_depth)])
-      #     end
-      #   end
-      #   ret
-      # end # descendants_as_nested_hash
 
       def tree_search_class
         self.class.tree_search_class
@@ -199,31 +117,24 @@ module MongoMapper
         if parent && self.descendants.include?(parent)
           errors.add(:base, :cyclic)
         end
-        if (self.tree_info.changes.include?("nv") && self.tree_info.changes.include?("dv") && self.changes.include?(parent_id_field))
+        if (self.tree_info.changes.include?("nv") && self.tree_info.changes.include?("dv") && self.changes.include?(tree_parent_id_field))
           if !correct_parent?(self.tree_info.nv, self.tree_info.dv)
             errors.add(:base, :incorrect_parent_nv_dv)
           end
         end
       end
 
-      def init_tree_info
-        if (self.tree_info == nil)
-          self.tree_info = TreeInfo.new
-        end
-      end
-
       def update_tree_info
-        #puts "update_tree_info"
         update_path();
         update_nv_dv();
       end
 
       def update_path(opts = {})
         if parent.nil?
-          self[parent_id_field] = nil
+          self[tree_parent_id_field] = nil
           self.tree_info.path = []
           self.tree_info.depth = 0
-        elsif !!opts[:force] || self.changes.include?(parent_id_field)
+        elsif !!opts[:force] || self.changes.include?(tree_parent_id_field)
           @_will_move = true
           self.tree_info.path  = parent.tree_info.path + [parent._id] 
           self.tree_info.depth = parent.tree_info.depth + 1
@@ -239,34 +150,25 @@ module MongoMapper
         self.tree_info.dv = dv
       end
 
-# TODO: what if we move parent without providing NV/DV??? NEED TO SUPPORT THAT AS WELL!
-# Should calculate next free nv/dv and set that if parent has changed. (set values to "missing and call missing function should work")
+    # TODO: what if we move parent without providing NV/DV??? NEED TO SUPPORT THAT AS WELL!
+    # Should calculate next free nv/dv and set that if parent has changed. (set values to "missing and call missing function should work")
       def update_nv_dv(opts = {})
-        #puts "#{self.name} update_nv_dv #{@_set_nv_dv}"
+        return if !tree_use_rational_numbers
         if @_set_nv_dv == true
-          #puts "set_nv_dv"
           @_set_nv_dv = false
           return
         end
-        # puts "update_nv_dv #{self.name} #{self.changes.inspect} #{self.tree_info.changes.inspect}"
-
         # if changes include both parent_id, tree_info.nv and tree_info.dv, 
         # checking in validatioon that the parent is correct.
         # if change is only nv/dv, check if parent is correct, move it...
-        # puts "---"
-        # puts self.changes.inspect
-        # puts "---"
-        # puts self.tree_info.changes.inspect
         if (self.tree_info.changes.include?("nv") && self.tree_info.changes.include?("dv"))
-          # puts "nv/dv changed"
           self.move_nv_dv(self.tree_info.nv, self.tree_info.dv)
-        elsif (self.changes.include?(parent_id_field)) || opts[:force]
-          # puts "only parent changed"
+        elsif (self.changes.include?(tree_parent_id_field)) || opts[:force]
           # only changed parent, needs to find next free position
           # use function for "missing nv/dv"
           # TODO CHECK THIS!!!! might only need self.has_siblings? instead of + 1
-          new_keys = self.next_keys_available(self[parent_id_field], (self.has_siblings? + 1)) if !opts[:position]
-          new_keys = self.next_keys_available(self[parent_id_field], (opts[:position] + 1)) if opts[:position]
+          new_keys = self.next_keys_available(self[tree_parent_id_field], (self.has_siblings? + 1)) if !opts[:position]
+          new_keys = self.next_keys_available(self[tree_parent_id_field], (opts[:position] + 1)) if opts[:position]
           self.move_nv_dv(new_keys[:nv], new_keys[:dv])
         end
       end
@@ -277,29 +179,27 @@ module MongoMapper
 
       # sets initial nv, dv, snv and sdv values
       def set_nv_dv_if_missing
-        # puts "set_nv_dv_if_missing #{self.name}"
+        return if !tree_use_rational_numbers
         if (self.tree_info.nv == 0 || self.tree_info.dv == 0 )
-          new_keys = self.next_keys_available(self[parent_id_field], (self.has_siblings? + 1) )
+          new_keys = self.next_keys_available(self[tree_parent_id_field], (self.has_siblings? + 1) )
           self.tree_info.nv = new_keys[:nv]
           self.tree_info.dv = new_keys[:dv]
           self.tree_info.snv = new_keys[:snv]
           self.tree_info.sdv = new_keys[:sdv]
-          self.tree_info.nv_div_dv = new_keys[:nv_div_dv]
+          self.tree_info.nv_div_dv = Float(new_keys[:nv]/Float(new_keys[:dv]))
           @_set_nv_dv = true
         end
-        # puts "Tree keys: #{self.tree_keys()} Float key: #{self.tree_info.nv_div_dv.round(4)}"
       end
 
 
       # if conflcting item on new position, shift all siblings right and insertg
       # can force move without updating conflicting siblings
       def move_nv_dv(nv, dv, opts = {})
+        return if !tree_use_rational_numbers
 #        return
         # nv_div_dv = Float(nv)/Float(dv)
         # find nv_div_dv?
         position = self.class.position_from_nv_dv(nv, dv)
-        #puts "#{self.name} move_nv_dv #{nv}, #{dv} current #{self.tree_info.nv} #{self.tree_info.dv} pos: #{position}"
-        # TODO  most be fixed for roots as well!!!!!!
         if !self.root?
           anc_keys = self.class.ancestor_tree_keys(nv, dv)
           rnv = anc_keys[:nv] + ((position + 1) * anc_keys[:snv])
@@ -313,13 +213,13 @@ module MongoMapper
         if (!opts[:ignore_conflict])
           conflicting_sibling = tree_search_class.where("tree_info.nv" => nv).where("tree_info.dv" => dv).first
           if (conflicting_sibling != nil) 
-            #puts "conflicting sibling!"
-            #puts conflicting_sibling.name.inspect
+            self.disable_timestamp_callback()
             # find nv/dv to the right of conflict
             # find position/count for this item
             next_keys = conflicting_sibling.next_sibling_keys
             conflicting_sibling.set_position(next_keys[:nv], next_keys[:dv])
             conflicting_sibling.save
+            self.enable_timestamp_callback()
           end
         end
 
@@ -328,7 +228,6 @@ module MongoMapper
         self.tree_info.dv = dv
         self.tree_info.snv = rnv
         self.tree_info.sdv = rdv
-        #puts "move_nv_dv #{self.name} - nv: #{nv} dv: #{dv} snv: #{rnv} sdv:#{rdv}"
         self.tree_info.nv_div_dv = Float(self.tree_info.nv)/Float(self.tree_info.dv)
         # as this is triggered from after_validation, save should be triggered by the caller.
       end
@@ -338,8 +237,6 @@ module MongoMapper
       def next_keys_available(parent_id, position)
         _parent = tree_search_class.where(:_id => parent_id).first
         _parent = nil if ((_parent.nil?) || (_parent == []))
-        # puts "position: #{position} parent: #{_parent.name}" if !_parent.nil?
-        # puts "position: #{position} parent: ROOT" if _parent.nil?
         ancnv = 0
         ancsnv = 1
         ancdv = 1
@@ -351,7 +248,7 @@ module MongoMapper
           ancsdv = _parent.tree_info.sdv
         end
         if (position == 0) && (_parent.nil?)
-          rethash = {:nv => 1, :dv => 1, :snv => 2, :sdv => 1, :nv_div_dv => 1 }
+          rethash = {:nv => 1, :dv => 1, :snv => 2, :sdv => 1}
         else 
           # get values from sibling_count
           _nv = ancnv + (position * ancsnv)
@@ -360,31 +257,35 @@ module MongoMapper
             :nv => _nv,
             :dv => _dv,
             :snv => ancnv + ((position + 1) * ancsnv),
-            :sdv => ancdv + ((position + 1) * ancsdv),
-            :nv_div_dv => Float(_nv)/Float(_dv)
+            :sdv => ancdv + ((position + 1) * ancsdv)
           }
         end
         rethash
       end
 
       def next_sibling_keys
-        next_keys_available(self[parent_id_field], self.class.position_from_nv_dv(self.tree_info.nv, self.tree_info.dv) +1)
+        next_keys_available(self[tree_parent_id_field], self.class.position_from_nv_dv(self.tree_info.nv, self.tree_info.dv) +1)
       end
 
       # to save queries, this will calculate ancestor tree keys instead of query them
       def ancestor_tree_keys
-        #puts "#{self.name.inspect} #{self.tree_info.inspect}"
         self.class.ancestor_tree_keys(self.tree_info.nv,self.tree_info.dv)
       end
 
       def query_ancestor_tree_keys
-        check_parent = tree_search_class.where(:_id => self[parent_id_field]).first
+        check_parent = tree_search_class.where(:_id => self[tree_parent_id_field]).first
         return nil if (check_parent.nil? || check_parent == [])
-        rethash = {:nv => check_parent.tree_info.nv, :dv => check_parent.tree_info.dv, :snv => check_parent.tree_info.snv, :sdv => check_parent.tree_info.sdv, :nv_div_dv => check_parent.tree_info.nv_div_dv}
+        rethash = {:nv => check_parent.tree_info.nv, 
+                   :dv => check_parent.tree_info.dv, 
+                   :snv => check_parent.tree_info.snv, 
+                   :sdv => check_parent.tree_info.sdv}
       end
 
       def tree_keys
-        {:nv => self.tree_info.nv, :dv => self.tree_info.dv, :snv => self.tree_info.snv, :sdv => self.tree_info.sdv, :nv_div_dv => self.tree_info.nv_div_dv}
+        { :nv => self.tree_info.nv, 
+          :dv => self.tree_info.dv, 
+          :snv => self.tree_info.snv, 
+          :sdv => self.tree_info.sdv}
       end
 
       # verifies parent keys from calculation and query
@@ -403,39 +304,16 @@ module MongoMapper
         end
       end
 
-      def set_base_positional_value
+      def disable_timestamp_callback
+        self.class.skip_callback(:save, :before, :update_timestamps ) if self.respond_to?("updated_at")
       end
 
-      # will return right value to calling parent
-      # def recurse_into_children(node)
-      #   if (!node.children?)
-      #     return node.left + 1
-      #   end
-      #   left = node.left
-      #   node.children.each do |child|
-      #     left += 1
-      #     child.left = left
-      #     child.right = recurse_into_children(child)
-      #     child.save
-      #   end
-      # end
-
-      def disable_tree_callbacks
-        self.class.skip_callback(:save, :before, :update_timestamps )
-        #self.class.skip_callback(:save, :after, :move_children )
-        self.class.skip_callback(:validate, :before, :will_save_tree )
-        self.class.skip_callback(:validate, :after, :update_tree_info )
-      end
-
-      def enable_tree_callbacks
-        self.class.set_callback(:save, :before, :update_timestamps )
-        #self.class.set_callback(:save, :after, :move_children )
-        self.class.set_callback(:validate, :before, :will_save_tree )
-        self.class.set_callback(:validate, :after, :update_tree_info )
+      def enable_timestamp_callback
+        self.class.set_callback(:save, :before, :update_timestamps ) if self.respond_to?("updated_at")
       end
 
       def root?
-        self[parent_id_field].nil?
+        self[tree_parent_id_field].nil?
       end
 
       def root
@@ -453,21 +331,21 @@ module MongoMapper
 
       def has_siblings?
         tree_search_class.where(:_id => { "$ne" => self._id })
-                         .where(parent_id_field => self[parent_id_field])
-                         .sort("tree_info.nv_div_dv").count
+                         .where(tree_parent_id_field => self[tree_parent_id_field])
+                         .sort(self.class.tree_sort_order()).count
       end
 
       def siblings
         tree_search_class.where({
           :_id => { "$ne" => self._id },
-          parent_id_field => self[parent_id_field]
-        }).sort("tree_info.nv_div_dv").all
+          tree_parent_id_field => self[tree_parent_id_field]
+        }).sort(self.class.tree_sort_order()).all
       end
 
       def self_and_siblings
         tree_search_class.where({
-          parent_id_field => self[parent_id_field]
-        }).sort("tree_info.nv_div_dv").all
+          tree_parent_id_field => self[tree_parent_id_field]
+        }).sort(self.class.tree_sort_order()).all
       end
 
       def children?
@@ -476,12 +354,12 @@ module MongoMapper
       end
 
       def children
-        tree_search_class.where(parent_id_field => self._id).sort("tree_info.nv_div_dv").all
+        tree_search_class.where(tree_parent_id_field => self._id).sort(self.class.tree_sort_order()).all
       end
 
       def descendants
         return [] if new_record?
-        tree_search_class.where("tree_info.path" => self._id).sort("tree_info.nv_div_dv").all
+        tree_search_class.where("tree_info.path" => self._id).sort(self.class.tree_sort_order()).all
       end
 
       def self_and_descendants
@@ -505,7 +383,7 @@ module MongoMapper
       end
 
       def is_sibling_of?(other)
-        (other != self) and (other[parent_id_field] == self[parent_id_field])
+        (other != self) and (other[tree_parent_id_field] == self[tree_parent_id_field])
       end
 
       def is_or_is_sibling_of?(other)
@@ -518,12 +396,25 @@ module MongoMapper
           # disable_tree_callbacks()
           # disable update_tree_info_callback
           _position = 0
+          self.disable_timestamp_callback()
           self.children.each do |child|
             child.update_path!
             child.update_nv_dv!(:position => _position)
+            puts "Update Child - #{child.name.inspect} #{child.changes.inspect}"
+            puts "#{child.updated_at.to_f}"
             child.save
+            child.reload
+            puts "#{child.updated_at.to_f}"
+            child.save
+            child.reload
+            puts "#{child.updated_at.to_f}"
+            child.reload
+            puts "#{child.updated_at.to_f}"
+
             _position += 1
           end
+          self.enable_timestamp_callback()
+
           # enable_tree_callbacks()
           @_will_move = true
         end
@@ -532,50 +423,6 @@ module MongoMapper
       def destroy_descendants
         tree_search_class.destroy(self.descendants.map(&:_id))
       end
-
-
-      # def sub_nodes_as_nested_hash(node, nodes, additional_fields = [], depth = nil)
-        
-      #   # only work through child nodes. Will speed up iteration...
-      #   nodes = get_child_nodes_only(node, nodes)
-
-      #   return {} if (nodes.nil? || node.nil?)
-      #   return {} if ((depth != nil) && (depth <= 0)) # shouldn't dig further down
-
-      #   ret = Hash.new
-
-      #   sub_depth = nil     if depth.nil?
-      #   sub_depth = depth-1 if !depth.nil?
-
-      #   for sub_node in nodes
-      #     if ((sub_node.depth == (node.depth + 1 )) && (sub_node.parent_id == node.id))
-      #       ret[sub_node._id] = {
-      #         :depth => sub_node.depth,
-      #         :path =>  sub_node.path,
-      #       }
-      #       for add_field in additional_fields
-      #         ret[sub_node._id] = ret[sub_node._id].merge(Hash[add_field, sub_node[add_field]])
-      #       end
-      #       ret[sub_node._id] = ret[sub_node._id].merge(Hash[:children, sub_nodes_as_nested_hash(sub_node, nodes, additional_fields, sub_depth)])
-      #     end
-      #   end
-      #   ret
-      # end # sub_nodes_as_nested_hash  
-
-    private
-      # def get_child_nodes_only(node, nodes)
-      #   return nil if (node.nil? || nodes.nil?)
-      #   return nil if (nodes.count <= 0)
-
-      #   ret_nodes = Array.new(nodes)
-      #   for single_node in nodes
-      #       ret_nodes.delete(single_node) if !(single_node.path.include?(node.id))
-      #   end
-
-      #   return nil if (ret_nodes.count <= 0 )
-
-      #   ret_nodes
-      # end # get_child_nodes_only
 
     end # Module Tree
   end # Module Plugins
