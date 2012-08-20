@@ -25,14 +25,16 @@ Enable the tree functionality by adding the plugin on your model
     key :name, String
   end
 
-Note: Rational numbers positioning is enabled by default!
+*Note:* Rational numbers positioning is enabled by default!
 
 This adds one embedded tree_info (non-changeable) and the following class attributes:
 
-* tree_parent_id_field overrides the field used for parent_id (default: parent_id)
-* tree_search_class expects a Class that is a MongoMapper::Document to be used for search (So you can have one collection with inherited models and trees for each model, not conflicting with each other)
-* tree_use_rational_numbers use rational numbers for sorting. set to false if you don't want it.
-* tree_order controls the order if rational numbers aren't used (format :field_name.[asc|desc]), else it will sort by rational numbers.
+* _tree_parent_id_field_ overrides the field used for parent_id (default: parent_id)
+* _tree_search_class_ expects a Class that is a MongoMapper::Document to be used for search (So you can have one collection with inherited models and trees for each model, not conflicting with each other)
+* _tree_use_rational_numbers_ use rational numbers for sorting. set to false if you don't want it.
+* _tree_order_ controls the order if rational numbers aren't used (format :field_name.[asc|desc]), else it will sort by rational numbers.
+
+If you want to use explicit _tree_order_, you *have to* set _tree_use_rational_numbers_ to false.
 
 == Configuration Examples
 Not using rational numbers, sorting by name, and using a different ID field.
@@ -109,9 +111,9 @@ Check test_order.rb, test_tree.rb and test_search_class.rb for more examples and
 * Send me a pull request, if you have features you like to see implemented.
 
 == Thanks
- * Jakob Vidmar  (For the original MongoMapper Tree)
- * Joel Junström (I based this tree on his refactoring of Jakobs MongoMapper Tree)
- * MongoMapper devels (John Nunemaker, Brandon Keepers & others)
+_Jakob Vidmar_  (For the original MongoMapper Tree)
+_Joel Junström_ (I based this tree on his refactoring of Jakobs MongoMapper Tree)
+_MongoMapper devels_ (John Nunemaker, Brandon Keepers & others)
 
 == Copyright
 Original ideas are Copyright Jakob Vidmar and Joel Junström. Please see their github repositories for details
