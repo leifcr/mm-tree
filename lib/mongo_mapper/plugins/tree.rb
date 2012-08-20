@@ -342,8 +342,8 @@ module MongoMapper
       end
 
       def has_siblings?
-        tree_search_class.where(:_id => { "$ne" => self._id })
-                         .where(tree_parent_id_field => self[tree_parent_id_field])
+        tree_search_class.where(:_id => { "$ne" => self._id }) \
+                         .where(tree_parent_id_field => self[tree_parent_id_field]) \
                          .sort(self.class.tree_sort_order()).count
       end
 
