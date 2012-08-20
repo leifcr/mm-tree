@@ -7,6 +7,8 @@ The reason for the changed implementation to use rational numbers is to be able 
 
 Rational numbers is even better than left/right trees, as you can remove parts of a tree or a node without reordering the entire tree. It is a bit more complicated, but there are some really good benefits.
 
+[![Build Status](https://secure.travis-ci.org/leifcr/mm-tree.png?branch=devel)](http://travis-ci.org/leifcr/mm-tree)
+
 == Installation
 
 I assume you are using bundler, so add this to your Gemfile:
