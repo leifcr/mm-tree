@@ -3,8 +3,8 @@ require 'pp'
 module MongoMapper
   module Plugins
     module Tree
+      @@_disable_timestamp_count = 0
       extend ActiveSupport::Concern
-
 
       module ClassMethods
 
@@ -53,7 +53,7 @@ module MongoMapper
 
         def tree_sort_order
           if !tree_use_rational_numbers
-            "#{tree_order} #{tree_info.depth.asc}" 
+            "#{tree_order} tree_info.depth.asc" 
           else
             "tree_info.nv_div_dv.asc"
           end
@@ -114,12 +114,18 @@ module MongoMapper
       end
 
       def will_save_tree
-        if parent && self.descendants.include?(parent)
-          errors.add(:base, :cyclic)
+        if parent
+          errors.add(:base, I18n.t(:cyclic, :scope => [:mongo_mapper, :errors, :messages, :tree])) if self.descendants.include?(parent)
+          if (parent.tree_search_class != self.tree_search_class)
+            errors.add(:base,  I18n.t(:search_class_mismatch, { \
+                :parent_search_class => parent.class.tree_search_class, \
+                :node_search_class => self.class.tree_search_class, \
+                :scope => [:mongo_mapper, :errors, :messages, :tree]})) 
+          end
         end
         if (self.tree_info.changes.include?("nv") && self.tree_info.changes.include?("dv") && self.changes.include?(tree_parent_id_field))
           if !correct_parent?(self.tree_info.nv, self.tree_info.dv)
-            errors.add(:base, :incorrect_parent_nv_dv)
+            errors.add(:base, I18n.t(:cyclic, :scope => [:mongo_mapper, :errors, :messages, :tree]))
           end
         end
       end
@@ -305,11 +311,17 @@ module MongoMapper
       end
 
       def disable_timestamp_callback
-        self.class.skip_callback(:save, :before, :update_timestamps ) if self.respond_to?("updated_at")
+        if self.respond_to?("updated_at")
+          @@_disable_timestamp_count += 1
+          self.class.skip_callback(:save, :before, :update_timestamps ) 
+        end
       end
 
       def enable_timestamp_callback
-        self.class.set_callback(:save, :before, :update_timestamps ) if self.respond_to?("updated_at")
+        if self.respond_to?("updated_at")
+          @@_disable_timestamp_count -= 1
+          self.class.set_callback(:save, :before, :update_timestamps ) if @@_disable_timestamp_count <= 0
+        end
       end
 
       def root?
@@ -393,23 +405,21 @@ module MongoMapper
       def move_children
         if @_will_move
           @_will_move = false
-          # disable_tree_callbacks()
-          # disable update_tree_info_callback
           _position = 0
           self.disable_timestamp_callback()
           self.children.each do |child|
             child.update_path!
             child.update_nv_dv!(:position => _position)
-            puts "Update Child - #{child.name.inspect} #{child.changes.inspect}"
-            puts "#{child.updated_at.to_f}"
+            # puts "Update Child - #{child.name.inspect} #{child.changes.inspect}"
+            # puts "#{child.updated_at.to_f}"
             child.save
             child.reload
-            puts "#{child.updated_at.to_f}"
+            # puts "#{child.updated_at.to_f}"
             child.save
             child.reload
-            puts "#{child.updated_at.to_f}"
+            # puts "#{child.updated_at.to_f}"
             child.reload
-            puts "#{child.updated_at.to_f}"
+            # puts "#{child.updated_at.to_f}"
 
             _position += 1
           end
