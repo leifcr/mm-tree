@@ -15,41 +15,59 @@ class TestSearchScope < Test::Unit::TestCase
     end
 
     should "return circle and square as children of shape" do
-      assert_equal [@circle, @square], @shape.children
+      [@circle, @square].should == @shape.children
     end
 
-    should("return shape as parent of circle") { assert_equal @shape, @circle.parent }
-    should("return shape as parent of square") { assert_equal @shape, @square.parent }
+    should("return shape as parent of circle") do
+      @shape.should == @circle.parent
+    end
+    should("return shape as parent of square") do
+      @shape.should == @square.parent
+    end
 
-    should("return square as exclusive sibling of circle") { assert_equal [@square], @circle.siblings }
+    should("return square as exclusive sibling of circle") do
+      [@square].should ==@circle.siblings
+    end
+
     should "return self and square as inclusive siblings of circle" do
-      assert_equal [@circle, @square], @circle.self_and_siblings
+      [@circle, @square].should == @circle.self_and_siblings
     end
 
-    should("return circle as exclusive sibling of square") { assert_equal [@circle], @square.siblings }
+    should("return circle as exclusive sibling of square") do 
+      [@circle].should == @square.siblings
+    end
     should "return self and circle as inclusive siblings of square" do
-      assert_equal [@circle, @square], @square.self_and_siblings
+      [@circle, @square].should == @square.self_and_siblings
     end
 
     should "return circle and square as exclusive descendants of shape" do
-      assert_equal [@circle, @square], @shape.descendants
+      [@circle, @square].should == @shape.descendants
     end
     should "return shape, circle and square as inclusive descendants of shape" do
-      assert_equal [@shape, @circle, @square], @shape.self_and_descendants
+      [@shape, @circle, @square].should == @shape.self_and_descendants
     end
 
-    should("return shape as exclusive ancestor of circle") { assert_equal [@shape], @circle.ancestors }
+    should("return shape as exclusive ancestor of circle") do
+      [@shape].should == @circle.ancestors
+    end
+
     should "return self and shape as inclusive ancestors of circle" do
-      assert_equal [@shape, @circle], @circle.self_and_ancestors
+      [@shape, @circle].should == @circle.self_and_ancestors
     end
 
-    should("return shape as exclusive ancestor of square") { assert_equal [@shape], @square.ancestors }
+    should("return shape as exclusive ancestor of square") do
+      [@shape].should == @square.ancestors
+    end
     should "return self and shape as inclusive ancestors of square" do
-      assert_equal [@shape, @square], @square.self_and_ancestors
+      [@shape, @square].should == @square.self_and_ancestors
     end
 
-    should("return shape as root of circle") { assert_equal @shape, @square.root }
-    should("return shape as root of square") { assert_equal @shape, @circle.root }
+    should("return shape as root of circle") do
+      @shape.should == @square.root 
+    end
+    should("return shape as root of square") do
+      @shape.should == @circle.root 
+    end
   end
 
   context "A tree with mixed types on either side of a branch" do
@@ -63,22 +81,34 @@ class TestSearchScope < Test::Unit::TestCase
       @shape, @circle, @square = Shape.first, Circle.first, Square.first
     end
 
-    should("return circle as child of shape") { assert_equal [@circle], @shape.children }
-    should("return square as child of circle") { assert_equal [@square], @circle.children }
-    should("return circle as parent of square") { assert_equal @circle, @square.parent }
-    should("return shape as parent of circle") { assert_equal @shape, @circle.parent }
+    should("return circle as child of shape")   do
+      [@circle].should == @shape.children
+    end
+    should("return square as child of circle")  do
+      [@square].should == @circle.children
+    end
+    should("return circle as parent of square") do
+      @circle.should == @square.parent
+    end
+    should("return shape as parent of circle")  do
+      @shape.should == @circle.parent
+    end
 
     should "return circle and square as descendants of shape" do
-      assert_equal [@circle, @square], @shape.descendants
+      [@circle, @square].should == @shape.descendants
     end
 
-    should("return square as descendant of circle") { assert_equal [@square], @circle.descendants }
+    should("return square as descendant of circle") do 
+      [@square].should == @circle.descendants
+    end
 
     should "return shape and circle as ancestors of square" do
-      assert_equal [@shape, @circle], @square.ancestors
+      [@shape, @circle].should == @square.ancestors
     end
 
-    should("return shape as ancestor of circle") { assert_equal [@shape], @circle.ancestors }
+    should("return shape as ancestor of circle") do
+      [@shape].should == @circle.ancestors
+    end
 
     should "destroy descendants of shape" do
       @shape.destroy_descendants

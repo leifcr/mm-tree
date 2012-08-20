@@ -23,8 +23,8 @@ end
 
 desc 'Tags version, pushes to remote, and pushes gem'
 task :release => :build do
-  sh "git tag v#{MongoMapperTree::Version}"
+  sh "git tag v#{MongoMapper::Tree::Version}"
   sh "git push origin master"
-  sh "git push origin v#{MongoMapperTree::Version}"
-  sh "gem push mm-tree-#{MongoMapperTree::Version}.gem"
+  sh "git push origin v#{MongoMapper::Tree::Version}"
+  sh "gem push mm-tree-#{MongoMapper::Tree::Version}.gem"
 end
