@@ -11,7 +11,10 @@ Rational numbers is even better than left/right trees, as you can remove parts o
 
 == Installation
 
-I assume you are using bundler, so add this to your Gemfile:
+If you are using bundler, and want latest stable gem
+  gem 'mm-tree'
+
+For latest edge version:
   gem 'mm-tree', :git => 'http://github.com/leifcr/mm-tree.git'
 
 == Usage
