@@ -270,7 +270,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
         assert @node_2_4_1_1.ancestor_tree_keys() == @node_2_4_1.tree_keys(), "After move: #{@node_2_4_1_1.name} ancestor keys should match #{@node_2_4_1.name} got: #{@node_2_4_1_1.ancestor_tree_keys()} expected: #{@node_2_4_1.tree_keys()}"
       end
       
-      should "should have changed nv/dv after changing parent (id)" do
+      should "have changed nv/dv after changing parent (id)" do
         old_keys = @node_1_2.tree_keys()
         @node_1_2.parent = @node_2
         # before saved
@@ -285,6 +285,15 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
         assert @node_1_2.ancestor_tree_keys() == @node_2.tree_keys(), "After move: #{@node_1_2.name} ancestor keys should match #{@node_2.name} got: #{@node_1_2.ancestor_tree_keys()} expected: #{@node_2.tree_keys()}"
         # should still be able to find correct keys for child of moved item
         assert @node_1_2_1.ancestor_tree_keys() == @node_1_2.tree_keys(), "After move #{@node_1_2_1.name} ancestor keys should match #{@node_1_2.name} got: #{@node_1_2_1.ancestor_tree_keys()} expected: #{@node_1_2.tree_keys()}"
+      end
+
+      should "have correct keys after destroying a sibling and creating a new item" do
+        old_id = @node_1_2._id
+        @node_1_2.destroy
+        Category.find(old_id).should == nil
+        node_1_4    = Category.create(:name => "Node 1.4", :parent => @node_1)
+        node_1_4.tree_keys.should_not == Hash[:nv => 7, :dv => 4, :snv => 9, :sdv => 5]
+        node_1_4.tree_keys.should == Hash[:nv => 9, :dv => 5, :snv => 11, :sdv => 6]
       end
     end # tree keys
 
