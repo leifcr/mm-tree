@@ -187,7 +187,13 @@ module MongoMapper
       def set_nv_dv_if_missing
         return if !tree_use_rational_numbers
         if (self.tree_info.nv == 0 || self.tree_info.dv == 0 )
-          new_keys = self.next_keys_available(self[tree_parent_id_field], (self.has_siblings? + 1) )
+          last_sibling = self.siblings.last
+          if (last_sibling == nil)
+            last_sibling_position = 0
+          else
+            last_sibling_position = self.class.position_from_nv_dv(last_sibling.tree_info.nv, last_sibling.tree_info.dv)
+          end
+          new_keys = self.next_keys_available(self[tree_parent_id_field], (last_sibling_position + 1) )
           self.tree_info.nv = new_keys[:nv]
           self.tree_info.dv = new_keys[:dv]
           self.tree_info.snv = new_keys[:snv]
