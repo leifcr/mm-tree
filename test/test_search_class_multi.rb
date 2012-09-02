@@ -14,7 +14,7 @@ class TestSearchScope < Test::Unit::TestCase
       @cube_1_2 = Cube.create(:name => "Cube 1.2", :parent => @cube_1)
       @cube_1_2_1 = Cube.create(:name => "Cube 1.2.1", :parent => @cube_1_2)
       @cube_1_2_2 = Cube.create(:name => "Cube 1.2.2", :parent => @cube_1_2)
-      @cube_1_2_2_1 = Cube.create(:name => "Cube 1.2.2.1", :parent => @cube_1_2_1)
+      @cube_1_2_1_1 = Cube.create(:name => "Cube 1.2.1.1", :parent => @cube_1_2_1)
     end
 
     should "return cubes as children of cube_1" do
@@ -37,9 +37,10 @@ class TestSearchScope < Test::Unit::TestCase
       @cube_1_2.reload
       @cube_1_2_1.reload
       @cube_1_2_2.reload
-      @cube_1_2_2_1.reload
-      @cube_1_1.siblings.should == [@cube_1_2, @cube_1_2_2]
-      @cube_1.descendants.should == [@cube_1_1, @cube_1_2, @cube_1_2_1, @cube_1_2_2, @cube_1_2_2_1]
+      @cube_1_2_1_1.reload
+      @cube_1_1.siblings.should verify_order(Array[@cube_1_2, @cube_1_2_2])
+      @cube_1.descendants.should verify_order(Array[@cube_1_1, @cube_1_2, @cube_1_2_1, @cube_1_2_1_1, @cube_1_2_2])
+      @cube_1.children.should verify_order(Array[@cube_1_1, @cube_1_2, @cube_1_2_2])
     end
 
     should "not return any triangles or cubes descendants of shape_1" do
@@ -64,7 +65,7 @@ class TestSearchScope < Test::Unit::TestCase
       @cube_1.errors.count.should == 1 #should have an error
       @cube_1.errors.each do |attribute, errmsg|
         attribute.to_s.should == "base"
-        errmsg.should == ("Mismatch between search classes. Parent: Triangle Node: Cube. They must be equal")
+        errmsg.should == ("Mismatch between search classes. Parent: Triangle Node: Cube")
       end
     end
 

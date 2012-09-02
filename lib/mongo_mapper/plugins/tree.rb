@@ -12,6 +12,22 @@ module MongoMapper
           self.where(tree_parent_id_field => nil).sort(tree_sort_order()).all
         end
 
+        # force all keys to update
+        def rekey_all!
+          # rekey keys for each root. will do children 
+          _pos = 1
+          self.roots.each do |root|
+            new_keys = keys_from_parent_keys_and_position({:nv => 0, :dv => 1, :snv => 1, :sdv => 0}, _pos)
+            if !compare_keys(root.tree_keys(), new_keys)
+              root.move_nv_dv(new_keys[:nv], new_keys[:dv], {:ignore_conflict => true})
+              root.save!
+              root.reload
+            end
+            root.rekey_children
+            _pos += 1
+          end
+        end
+
         def position_from_nv_dv(nv, dv)
           anc_tree_keys = ancestor_tree_keys(nv, dv)
           (nv - anc_tree_keys[:nv]) / anc_tree_keys[:snv]
@@ -51,11 +67,25 @@ module MongoMapper
           return rethash
         end #get_ancestor_keys(nv,dv)
 
+        def keys_from_parent_keys_and_position(parent_keys, position)
+          { :nv => parent_keys[:nv] + (position * parent_keys[:snv]),
+            :dv => parent_keys[:dv] + (position * parent_keys[:sdv]),
+            :snv => parent_keys[:nv] + ((position + 1) * parent_keys[:snv]),
+            :sdv => parent_keys[:dv] + ((position + 1) * parent_keys[:sdv]) }
+        end
+
+        def compare_keys(key1, key2)
+        ( (key1[:nv] === key2[:nv]) and
+          (key1[:dv] === key2[:dv]) and
+          (key1[:snv] === key2[:snv]) and
+          (key1[:sdv] === key2[:sdv]))
+        end
+
         def tree_sort_order
           if !tree_use_rational_numbers
-            "#{tree_order} tree_info.depth.asc" 
+            "#{tree_order} #{tree_info_depth_field}" 
           else
-            "tree_info.nv_div_dv.asc"
+            tree_info_nv_div_dv_field.asc
           end
         end
 
@@ -85,10 +115,16 @@ module MongoMapper
         self.tree_search_class ||= self
 
         class_attribute :tree_parent_id_field
-        self.tree_parent_id_field ||= "parent_id"
+        self.tree_parent_id_field ||= :parent_id
 
         class_attribute :tree_use_rational_numbers
         self.tree_use_rational_numbers ||= true
+
+        class_attribute :tree_info_depth_field
+        self.tree_info_depth_field ||= :tree_info_depth
+
+        class_attribute :tree_info_nv_div_dv_field
+        self.tree_info_nv_div_dv_field ||= :tree_info_nv_div_dv
 
         class_attribute :tree_order
 
@@ -139,11 +175,11 @@ module MongoMapper
         if parent.nil?
           self[tree_parent_id_field] = nil
           self.tree_info.path = []
-          self.tree_info.depth = 0
+          self[tree_info_depth_field] = 0
         elsif !!opts[:force] || self.changes.include?(tree_parent_id_field)
           @_will_move = true
           self.tree_info.path  = parent.tree_info.path + [parent._id] 
-          self.tree_info.depth = parent.tree_info.depth + 1
+          self[tree_info_depth_field] = parent[tree_info_depth_field] + 1
         end
       end
 
@@ -156,8 +192,8 @@ module MongoMapper
         self.tree_info.dv = dv
       end
 
-    # TODO: what if we move parent without providing NV/DV??? NEED TO SUPPORT THAT AS WELL!
-    # Should calculate next free nv/dv and set that if parent has changed. (set values to "missing and call missing function should work")
+      # Should calculate next free nv/dv and set that if parent has changed. 
+      # (set values to "missing and call missing function should work")
       def update_nv_dv(opts = {})
         return if !tree_use_rational_numbers
         if @_set_nv_dv == true
@@ -172,9 +208,8 @@ module MongoMapper
         elsif (self.changes.include?(tree_parent_id_field)) || opts[:force]
           # only changed parent, needs to find next free position
           # use function for "missing nv/dv"
-          # TODO CHECK THIS!!!! might only need self.has_siblings? instead of + 1
-          new_keys = self.next_keys_available(self[tree_parent_id_field], (self.has_siblings? + 1)) if !opts[:position]
-          new_keys = self.next_keys_available(self[tree_parent_id_field], (opts[:position] + 1)) if opts[:position]
+          new_keys = self.keys_from_position((self.has_siblings? + 1)) if !opts[:position]
+          new_keys = self.keys_from_position((opts[:position] + 1)) if opts[:position]
           self.move_nv_dv(new_keys[:nv], new_keys[:dv])
         end
       end
@@ -193,12 +228,12 @@ module MongoMapper
           else
             last_sibling_position = self.class.position_from_nv_dv(last_sibling.tree_info.nv, last_sibling.tree_info.dv)
           end
-          new_keys = self.next_keys_available(self[tree_parent_id_field], (last_sibling_position + 1) )
+          new_keys = self.keys_from_position((last_sibling_position + 1) )
           self.tree_info.nv = new_keys[:nv]
           self.tree_info.dv = new_keys[:dv]
           self.tree_info.snv = new_keys[:snv]
           self.tree_info.sdv = new_keys[:sdv]
-          self.tree_info.nv_div_dv = Float(new_keys[:nv]/Float(new_keys[:dv]))
+          self[tree_info_nv_div_dv_field] = Float(new_keys[:nv]/Float(new_keys[:dv]))
           @_set_nv_dv = true
         end
       end
@@ -208,9 +243,6 @@ module MongoMapper
       # can force move without updating conflicting siblings
       def move_nv_dv(nv, dv, opts = {})
         return if !tree_use_rational_numbers
-#        return
-        # nv_div_dv = Float(nv)/Float(dv)
-        # find nv_div_dv?
         position = self.class.position_from_nv_dv(nv, dv)
         if !self.root?
           anc_keys = self.class.ancestor_tree_keys(nv, dv)
@@ -240,14 +272,14 @@ module MongoMapper
         self.tree_info.dv = dv
         self.tree_info.snv = rnv
         self.tree_info.sdv = rdv
-        self.tree_info.nv_div_dv = Float(self.tree_info.nv)/Float(self.tree_info.dv)
+        self[tree_info_nv_div_dv_field] = Float(self.tree_info.nv)/Float(self.tree_info.dv)
         # as this is triggered from after_validation, save should be triggered by the caller.
       end
       # change this require ancestor data + position, 
       # next position can be found using: self.has_siblings? + 1
       # as when moving children, the sibling_count won't work
-      def next_keys_available(parent_id, position)
-        _parent = tree_search_class.where(:_id => parent_id).first
+      def keys_from_position(position)
+        _parent = tree_search_class.where(:_id => self[tree_parent_id_field]).first
         _parent = nil if ((_parent.nil?) || (_parent == []))
         ancnv = 0
         ancsnv = 1
@@ -259,24 +291,11 @@ module MongoMapper
           ancdv  = _parent.tree_info.dv
           ancsdv = _parent.tree_info.sdv
         end
-        if (position == 0) && (_parent.nil?)
-          rethash = {:nv => 1, :dv => 1, :snv => 2, :sdv => 1}
-        else 
-          # get values from sibling_count
-          _nv = ancnv + (position * ancsnv)
-          _dv = ancdv + (position * ancsdv)
-          rethash = {
-            :nv => _nv,
-            :dv => _dv,
-            :snv => ancnv + ((position + 1) * ancsnv),
-            :sdv => ancdv + ((position + 1) * ancsdv)
-          }
-        end
-        rethash
+        self.class.keys_from_parent_keys_and_position({:nv => ancnv, :dv => ancdv, :snv => ancsnv, :sdv => ancsdv}, position)
       end
 
       def next_sibling_keys
-        next_keys_available(self[tree_parent_id_field], self.class.position_from_nv_dv(self.tree_info.nv, self.tree_info.dv) +1)
+        keys_from_position(self.class.position_from_nv_dv(self.tree_info.nv, self.tree_info.dv) +1)
       end
 
       # to save queries, this will calculate ancestor tree keys instead of query them
@@ -327,6 +346,21 @@ module MongoMapper
         if self.respond_to?("updated_at")
           @@_disable_timestamp_count -= 1
           self.class.set_callback(:save, :before, :update_timestamps ) if @@_disable_timestamp_count <= 0
+        end
+      end
+
+      def rekey_children
+        return if (!self.children?)
+        _pos = 1
+        self.children.each do |child|
+          new_keys = self.class.keys_from_parent_keys_and_position(self.tree_keys(), _pos)
+          if !self.class.compare_keys(child.tree_keys(), new_keys)
+            child.move_nv_dv(new_keys[:nv], new_keys[:dv], {:ignore_conflict => true})
+            child.save!
+            child.reload
+          end
+          child.rekey_children
+          _pos += 1
         end
       end
 
@@ -416,17 +450,8 @@ module MongoMapper
           self.children.each do |child|
             child.update_path!
             child.update_nv_dv!(:position => _position)
-            # puts "Update Child - #{child.name.inspect} #{child.changes.inspect}"
-            # puts "#{child.updated_at.to_f}"
             child.save
             child.reload
-            # puts "#{child.updated_at.to_f}"
-            child.save
-            child.reload
-            # puts "#{child.updated_at.to_f}"
-            child.reload
-            # puts "#{child.updated_at.to_f}"
-
             _position += 1
           end
           self.enable_timestamp_callback()

@@ -8,8 +8,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
       @node_1_2_1  = Category.create(:name => "Node 1.2.1", :parent => @node_1_2)
       @node_1_2_2  = Category.create(:name => "Node 1.2.2", :parent => @node_1_2)
       @node_1_3    = Category.create(:name => "Node 1.3", :parent => @node_1)
-      #@node_4    = Category.create(:name => "Node 3", :parent => @node_1)
-      @node_2     = Category.create(:name => "Node 2")
+      @node_2      = Category.create(:name => "Node 2")
       @node_2_1    = Category.create(:name => "Node 2.1", :parent => @node_2)
       @node_2_2    = Category.create(:name => "Node 2.2", :parent => @node_2)
       @node_2_3    = Category.create(:name => "Node 2.3", :parent => @node_2)
@@ -53,9 +52,9 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
       end
 
       should "set depth" do
-        @node_1.tree_info.depth.should == 0
-        @node_1_1.tree_info.depth.should == 1
-        @node_1_2_1.tree_info.depth.should == 2
+        @node_1[Category.tree_info_depth_field].should == 0
+        @node_1_1[Category.tree_info_depth_field].should == 1
+        @node_1_2_1[Category.tree_info_depth_field].should == 2
       end
 
       should "have children" do
@@ -118,7 +117,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
           assert @node_1_2.descendants.include?(@node_1_3)
           assert @node_1_2_1.is_or_is_sibling_of?(@node_1_3)
           assert @node_1_2_2.is_or_is_sibling_of?(@node_1_3)
-          @node_1_3.tree_info.depth.should == 2
+          @node_1_3[Category.tree_info_depth_field].should == 2
         end
 
         should "move children on save" do
@@ -194,6 +193,26 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
     end
 
     context "node (keys)" do
+      should "verify order of tree" do
+        all_category_items = Category.sort(Category.tree_sort_order).all
+        correct_order = Array[@node_1, 
+                            @node_1_1, 
+                            @node_1_2,
+                            @node_1_2_1,
+                            @node_1_2_2,
+                            @node_1_3,
+                            @node_2,
+                            @node_2_1,
+                            @node_2_2,
+                            @node_2_3,
+                            @node_2_4,
+                            @node_2_4_1,
+                            @node_2_4_1_1,
+                            @node_2_4_2,
+                            @node_2_4_3]
+          all_category_items.should verify_order(correct_order);
+        end
+
       should "find keys from id" do
         assert Category.find(@node_1._id).tree_keys == @node_1.tree_keys, "Query doesn't match created object #{@node_1.name}"
         assert Category.find(@node_2_4_1_1._id).tree_keys == @node_2_4_1_1.tree_keys, "Query doesn't match created object #{@node_2_4_1_1.name}"
@@ -236,7 +255,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
 
       should "move to new specific nv, dv location and move conflicting items" do
         assert @node_2_4.ancestor_tree_keys() == @node_2.tree_keys(), "Before move: #{@node_2_4.name} ancestor keys should match #{@node_2.name} got: #{@node_2_4.ancestor_tree_keys()} expected: #{@node_2.tree_keys()}"
-        assert @node_2_4_1.tree_info.depth == 2, "Before move: Depth of #{@node_2_4_1.name} should be 2"
+        assert @node_2_4_1[Category.tree_info_depth_field] == 2, "Before move: Depth of #{@node_2_4_1.name} should be 2"
         old_1_2_keys = @node_1_2.tree_keys()
         new_node_1_2_keys = @node_1_2.next_sibling_keys
         @node_2_4.set_position(@node_1_2.tree_info.nv, @node_1_2.tree_info.dv)
@@ -253,7 +272,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
 
       should "move @node_2_4 to root position" do
         assert @node_2_4.ancestor_tree_keys() == @node_2.tree_keys(), "Before move: #{@node_2_4.name} ancestor keys should match #{@node_2.name} got: #{@node_2_4.ancestor_tree_keys()} expected: #{@node_2.tree_keys()}"
-        assert @node_2_4_1.tree_info.depth == 2, "Before move: Depth of #{@node_2_4_1.name} should be 2"
+        assert @node_2_4_1[Category.tree_info_depth_field] == 2, "Before move: Depth of #{@node_2_4_1.name} should be 2"
         @node_2_4.parent = nil
         @node_2_4.save
         @node_2_4.reload
@@ -263,7 +282,7 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
       # TODO: OVERRIDE RELOAD TO LOAD ALL CHILDREN IN MEMORY/CACHE/ASSOCS
         @node_2_4_1.reload
         assert @node_2_4_1.tree_info.path.count == 1, "After move:  Path length of #{@node_2_4_1.name} should only be 1"
-        assert @node_2_4_1.tree_info.depth == 1, "After move: Depth of #{@node_2_4_1.name} should be 1"
+        assert @node_2_4_1[Category.tree_info_depth_field] == 1, "After move: Depth of #{@node_2_4_1.name} should be 1"
         assert @node_2_4_1.ancestor_tree_keys()   == @node_2_4.tree_keys(),   "After move: #{@node_2_4_1.name} ancestor keys should match #{@node_2_4.name} got: #{@node_2_4_1.ancestor_tree_keys()} expected: #{@node_2_4.tree_keys()}"
       # TODO: OVERRIDE RELOAD TO LOAD ALL CHILDREN IN MEMORY/CACHE/ASSOCS
         @node_2_4_1_1.reload
@@ -295,11 +314,59 @@ class TestMongomapperActsAsTree < Test::Unit::TestCase
         node_1_4.tree_keys.should_not == Hash[:nv => 7, :dv => 4, :snv => 9, :sdv => 5]
         node_1_4.tree_keys.should == Hash[:nv => 9, :dv => 5, :snv => 11, :sdv => 6]
       end
-    end # tree keys
 
-    should "rekey the entire treestructre" do
-      # TODO
+    end # context "node (keys)" do
+    context "when rekeying" do
+      should "be able to update the entire treestructre" do
+        return true
+        old_keys_node_1_2     = @node_1_2.tree_keys()
+        old_keys_node_2_4_2   = @node_2_4_2.tree_keys()
+        @node_1_2.destroy
+        @node_2_4_2.destroy
+        Category.rekey_all!
+
+        # verify some nodes that should be unaffected by rekeying
+        @node_1.reload
+        @node_2.reload
+        @node_2_1.reload
+        @node_1.should        verify_keys(Hash[:nv => 1, :dv => 1, :snv => 2, :sdv => 1])
+        @node_2.should        verify_keys(Hash[:nv => 2, :dv => 1, :snv => 3, :sdv => 1])
+        @node_2_1.should      verify_keys(Hash[:nv => 5, :dv => 2, :snv => 8, :sdv => 3])
+
+        @node_1_3.reload
+        @node_2_4_3.reload
+        @node_1_3.should      verify_keys(old_keys_node_1_2)
+        @node_2_4_3.should    verify_keys(old_keys_node_2_4_2)
+      end
+
+      should "rekey descendants of node_2" do
+        _node_2_2_1    = Category.create(:name => "Node 2.2.1", :parent => @node_2_2)
+        _node_2_2_1_1  = Category.create(:name => "Node 2.2.1.1", :parent => _node_2_2_1)
+        old_keys_node_2_4_1_1 = @node_2_4_1_1.tree_keys()
+        old_keys_node_2_4_1   = @node_2_4_1.tree_keys()
+        old_keys_node_2_2     = @node_2_2.tree_keys()
+        old_keys_node_2_2_1_1 = _node_2_2_1_1.tree_keys()
+        old_keys_node_2_2_1   = _node_2_2_1.tree_keys()
+        _node_2_2_1.destroy # delete temporary node
+        @node_2_2.destroy
+        @node_2_3.destroy
+        @node_2.rekey_children()
+        @node_2_4.reload
+        @node_2_4_1.reload
+        @node_2_4_1_1.reload
+
+        # verify some nodes that should be unaffected by rekeying
+        @node_1.reload
+        @node_1.should            verify_keys(Hash[:nv => 1, :dv => 1, :snv => 2, :sdv => 1])
+        @node_2_4.should          verify_keys(old_keys_node_2_2)
+        @node_2_4_1.should_not    verify_keys(old_keys_node_2_4_1)
+        @node_2_4_1_1.should_not  verify_keys(old_keys_node_2_4_1_1)
+        @node_2_4_1.should        verify_keys(old_keys_node_2_2_1)
+        @node_2_4_1_1.should      verify_keys(old_keys_node_2_2_1_1)
+      end
+
     end
+
 
   end #Context "Tree" do
 end
