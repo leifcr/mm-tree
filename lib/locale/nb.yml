@@ -1,0 +1,8 @@
+nb:
+  mongo_mapper:
+    errors:
+      messages:
+        tree:
+          cyclic: "Kan ikke være barnet av en etterkommer."
+          incorrect_parent_nv_dv: "Posisjonelle/rasjonelle verdier stemmer ikke (check nv/dv values)"
+          search_class_mismatch: "Søke klassene er ikke identiske. Forelder: %{parent_search_class} Node/barn: %{node_search_class}."

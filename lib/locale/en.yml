@@ -5,4 +5,4 @@ en:
         tree:
           cyclic: "Can't be children of a descendant"
           incorrect_parent_nv_dv: "Positional values doesn't match parent (check nv/dv values)"
-          search_class_mismatch: "Mismatch between search classes. Parent: %{parent_search_class} Node: %{node_search_class}. They must be equal"
+          search_class_mismatch: "Mismatch between search classes. Parent: %{parent_search_class} Node: %{node_search_class}."
