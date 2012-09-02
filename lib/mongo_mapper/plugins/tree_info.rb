@@ -5,13 +5,10 @@ class TreeInfo
 
   key :nv, Integer, :default => 0
   key :dv, Integer, :default => 0
-  key :nv_div_dv, Float, :default => 0
   key :snv, Integer, :default => 0
   key :sdv, Integer, :default => 0
   key :path, Array, :typecast => 'ObjectId' # might need to be string instead?
-  key :depth, Integer
-  # key :position, Integer (might not use this?)
-  # key :parent_id, ObjectId
+#  key :depth, Integer
 
   timestamps!
 

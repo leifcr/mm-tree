@@ -114,11 +114,11 @@ module MongoMapper
         class_attribute :tree_search_class
         self.tree_search_class ||= self
 
-        class_attribute :tree_parent_id_field
-        self.tree_parent_id_field ||= :parent_id
-
         class_attribute :tree_use_rational_numbers
         self.tree_use_rational_numbers ||= true
+
+        class_attribute :tree_parent_id_field
+        self.tree_parent_id_field ||= :parent_id
 
         class_attribute :tree_info_depth_field
         self.tree_info_depth_field ||= :tree_info_depth
@@ -129,6 +129,8 @@ module MongoMapper
         class_attribute :tree_order
 
         key tree_parent_id_field, ObjectId
+        key tree_info_nv_div_dv_field, Float, :default => 0
+        key tree_info_depth_field, Integer, :default => 0
         one :tree_info
 # 
 #       An index for path field, left_field and right_field is recommended for faster queries.
