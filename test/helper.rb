@@ -70,7 +70,7 @@ class Test::Unit::TestCase
     end
     matcher.positive_failure_message = "Expected order to be #{order_from_matching_names}, but got #{order_from_reciever_names}"
     matcher.negative_failure_message = "Expected order to be different from #{order_from_matching_names}, but got #{order_from_reciever_names}"
-    (receiver <=> args[0]) === 0
+    receiver == args[0]
   end
 
 end
