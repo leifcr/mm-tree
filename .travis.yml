@@ -7,3 +7,8 @@ rvm:
 notifications:
   email: false
 bundler_args: --without development
+branches:
+  except:
+    - development
+services:
+  - mongodb
