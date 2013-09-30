@@ -13,7 +13,4 @@ Gem::Specification.new do |s|
   s.files          = Dir.glob("{lib,test}/**/*") + %w[LICENSE README.rdoc]
 
   s.test_files = Dir.glob("{test}/**/*")
-
-  s.add_dependency 'mongo_mapper', '~> 0.12.0'
-  s.add_dependency 'i18n'
 end

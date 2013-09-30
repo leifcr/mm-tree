@@ -1,14 +1,18 @@
-source :rubygems
+source 'http://rubygems.org'
 
-gem 'rake'
-gem 'bson_ext', '>= 1.6.4'
+gem "mongo_mapper", ">= 0.13.0.beta2"
+gem 'bson_ext'
+gem 'i18n'
+gem 'rational_number'
 
 group :test do
-  gem 'jnunemaker-matchy', '>= 0.4', :require => 'matchy'
-  gem 'shoulda',           '>= 3.1.1'
-  gem 'timecop',           '>= 0.4.5'
-  gem 'mocha',             '>= 0.12.3'
-  gem 'database_cleaner',  '>= 0.8.0'
+  gem 'rspec'
+  gem 'shoulda',           '>= 3.5.0'
+  gem 'timecop',           '>= 0.6.0'
+  gem 'database_cleaner',  '>= 1.1.0'
 end
 
-gemspec
+group :development do
+  gem "bundler", ">= 1.3.0"
+  gem "jeweler", "~> 1.8.6"
+end
